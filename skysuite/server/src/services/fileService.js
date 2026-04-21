@@ -1,4 +1,45 @@
-const s3 = require("../config/s3");
+const File = require("../models/File");
+const AppError = require("../utils/AppError");
+const fs = require("fs");
+const path = require("path");
+
+exports.uploadFile = async (file, userId) => {
+  if (!file) throw new AppError("No file provided", 400);
+
+  const fileUrl = `/uploads/${file.filename}`;
+
+  const savedFile = await File.create({
+    user: userId,
+    fileName: file.originalname,
+    filePath: fileUrl,
+    fileType: file.mimetype,
+  });
+
+  return savedFile;
+};
+
+exports.listFiles = async (userId) => {
+  return await File.find({ user: userId }).sort({ createdAt: -1 });
+};
+
+exports.deleteFile = async (fileId, userId) => {
+  const file = await File.findOne({ _id: fileId, user: userId });
+
+  if (!file) throw new AppError("File not found", 404);
+
+  // delete from local storage
+  const filePath = path.join(__dirname, "../../", file.filePath);
+
+  if (fs.existsSync(filePath)) {
+    fs.unlinkSync(filePath);
+  }
+
+  await file.deleteOne();
+
+  return { message: "File deleted successfully" };
+};
+
+/*const s3 = require("../config/s3");
 const File = require("../models/File");
 const AppError = require("../utils/AppError");
 
@@ -45,3 +86,4 @@ exports.deleteFile = async (fileId, userId) => {
 
   return { message: "File deleted successfully" };
 };
+*/
